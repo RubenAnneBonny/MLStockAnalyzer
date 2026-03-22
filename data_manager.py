@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 
 class SequenceDataset(Dataset):
     def __init__(self, X, y):
-        self.X = X,
+        self.X = X
         self.y = y
 
     def __len__(self):
@@ -26,7 +26,8 @@ class Data_Manager:
                 target_binary: bool = False,
                 data_binary: bool = False,
                 window_size: int = 10, 
-                batch_size: int = 32):
+                batch_size: int = 32,
+                normalize_data: bool = True):
 
         self.today = self.get_todays_date()
         print(f"Collecting all data of {stock} until {self.today}")
@@ -37,6 +38,7 @@ class Data_Manager:
         self.window_size = window_size
         self.shuffle_data_before_split = shuffle_data_before_split
         self.batch_size = batch_size
+        self.normalize_data = normalize_data
 
         self.X, self.y = self.create_input_data_windows()
         self.X_train, self.X_test, self.y_train, self.y_test = self.convert_data_to_tensor()
@@ -63,8 +65,13 @@ class Data_Manager:
             shuffle=self.shuffle_data_before_split
         )
 
-        return torch.tensor(X_train), torch.tensor(X_test), torch.tensor(y_train), torch.tensor(y_test)
+        X_train = torch.tensor(X_train, dtype=torch.float32).unsqueeze(-1)
+        X_test  = torch.tensor(X_test, dtype=torch.float32).unsqueeze(-1)
+        y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(-1)
+        y_test  = torch.tensor(y_test, dtype=torch.float32).unsqueeze(-1)
 
+        return X_train, X_test, y_train, y_test
+    
     def create_dataloader(self, X, y, shuffle):
         dataset = SequenceDataset(X, y)
 
@@ -90,6 +97,10 @@ class Data_Manager:
         for i in tqdm(range(len(self.data) - 1), desc="Converting data to percentage"):
             numbers.append(1 - self.get_value(i + 1) / self.get_value(i))
 
+        if self.normalize_data:
+            mean, std = np.mean(numbers), np.std(numbers)
+            numbers = (numbers - mean) / std
+
         return numbers
     
     def create_input_data_windows(self):
@@ -113,5 +124,3 @@ class Data_Manager:
                 targets.append(percentages[i + self.window_size + 1])
 
         return data, targets
-    
-manager = Data_Manager(target_binary=True)
