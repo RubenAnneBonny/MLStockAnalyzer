@@ -5,6 +5,18 @@ import time
 from tqdm.auto import tqdm
 from sklearn.model_selection import train_test_split
 import torch
+from torch.utils.data import Dataset, DataLoader
+
+class SequenceDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = X,
+        self.y = y
+
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
 
 class Data_Manager:
     def __init__(self, 
@@ -13,7 +25,8 @@ class Data_Manager:
                 stock: str = "AAPL",
                 target_binary: bool = False,
                 data_binary: bool = False,
-                window_size: int = 10):
+                window_size: int = 10, 
+                batch_size: int = 32):
 
         self.today = self.get_todays_date()
         print(f"Collecting all data of {stock} until {self.today}")
@@ -23,9 +36,13 @@ class Data_Manager:
         self.train_split = train_split
         self.window_size = window_size
         self.shuffle_data_before_split = shuffle_data_before_split
+        self.batch_size = batch_size
 
         self.X, self.y = self.create_input_data_windows()
         self.X_train, self.X_test, self.y_train, self.y_test = self.convert_data_to_tensor()
+
+        self.train_dataloader = self.create_dataloader(self.X_train, self.y_train, True)
+        self.test_dataloader = self.create_dataloader(self.X_test, self.y_test, False)
 
     def get_todays_date(self) -> str:
         lt = time.localtime()
@@ -47,6 +64,15 @@ class Data_Manager:
         )
 
         return torch.tensor(X_train), torch.tensor(X_test), torch.tensor(y_train), torch.tensor(y_test)
+
+    def create_dataloader(self, X, y, shuffle):
+        dataset = SequenceDataset(X, y)
+
+        dataloader = DataLoader(dataset,
+                                batch_size=self.batch_size,
+                                shuffle = shuffle)
+        
+        return dataloader
 
     def convert_num_to_date(self,
                             num: int) -> str:
