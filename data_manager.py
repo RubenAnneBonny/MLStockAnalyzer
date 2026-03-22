@@ -3,24 +3,29 @@ import pandas as pd
 import numpy as np
 import time
 from tqdm.auto import tqdm
+from sklearn.model_selection import train_test_split
+import torch
 
 class Data_Manager:
     def __init__(self, 
                 train_split: float = 0.8,
+                shuffle_data_before_split: bool = False,
                 stock: str = "AAPL",
                 target_binary: bool = False,
                 data_binary: bool = False,
                 window_size: int = 10):
 
         self.today = self.get_todays_date()
-        print(f"Collecting all data of {stock}  until {self.today}")
+        print(f"Collecting all data of {stock} until {self.today}")
         self.data = yf.download(stock, start="1700-01-01", end=self.today)
         self.target_binary = target_binary
         self.data_binary = data_binary
         self.train_split = train_split
         self.window_size = window_size
+        self.shuffle_data_before_split = shuffle_data_before_split
 
         self.X, self.y = self.create_input_data_windows()
+        self.X_train, self.X_test, self.y_train, self.y_test = self.convert_data_to_tensor()
 
     def get_todays_date(self) -> str:
         lt = time.localtime()
@@ -33,6 +38,15 @@ class Data_Manager:
             day = "0" + day
 
         return year + "-" + month + "-" + day
+
+    def convert_data_to_tensor(self):
+        X_train, X_test, y_train, y_test = train_test_split(
+            self.X, self.y, 
+            train_size=self.train_split,
+            shuffle=self.shuffle_data_before_split
+        )
+
+        return torch.tensor(X_train), torch.tensor(X_test), torch.tensor(y_train), torch.tensor(y_test)
 
     def convert_num_to_date(self,
                             num: int) -> str:
@@ -75,5 +89,3 @@ class Data_Manager:
         return data, targets
     
 manager = Data_Manager(target_binary=True)
-
-print(manager.y[:10])
